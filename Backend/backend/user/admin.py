@@ -1,26 +1,67 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser
 
+
 @admin.register(CustomUser)
-class CustomUserAdmin(DjangoUserAdmin):
+class CustomUserAdmin(UserAdmin):
     model = CustomUser
 
+    # Used when VIEWING / EDITING an existing user
     fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ("Personal info", {'fields': ('first_name', 'last_name', 'email', 'bio', 'gender', 'date_of_birth')}),
-        ("Identifiers", {'fields': ('role', 'student_id', 'staff_id', 'department')}),
-        ("Permissions", {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ("Important dates", {'fields': ('last_login', 'date_joined')}),
+        (None, {"fields": ("username", "password")}),
+        (
+            "Personal Information",
+            {
+                "fields": (
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "gender",
+                    "date_of_birth",
+                    "bio",
+                )
+            },
+        ),
+        (
+            "Academic Information",
+            {
+                "fields": (
+                    "role",
+                    "student_id",
+                    "staff_id",
+                    "department",
+                )
+            },
+        ),
     )
 
+    # Used when ADDING a new user
     add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'role', 'gender', 'date_of_birth', 'student_id', 'staff_id')
-        }),
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": (
+                    "username",
+                    "first_name",
+                    "last_name",
+                    "gender",
+                    "date_of_birth",
+                    "email",
+                    "password1",
+                    "password2",
+                    "role",
+                    "student_id",
+                    "staff_id",
+                    "department",
+                    "bio",
+                ),
+            },
+        ),
     )
 
-    list_display = ('username', 'email', 'role', 'student_id', 'staff_id', 'gender', 'date_of_birth', 'is_staff')
-    search_fields = ('username', 'email', 'student_id', 'staff_id')
-    ordering = ('username',)
+    list_display = ("username", "email", "role")
+    list_filter = ("role",)
+    search_fields = ("username", "email", "student_id", "staff_id")
+    ordering = ("username",)

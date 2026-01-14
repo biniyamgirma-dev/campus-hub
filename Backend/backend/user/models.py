@@ -21,12 +21,17 @@ class CustomUser(AbstractUser):
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     bio = models.TextField(blank=True)
 
+    REQUIRED_FIELDS = ['first_name', 'last_name', 'email']
+
     def clean(self):
         super().clean()
 
         # Require full name
         if not self.first_name or not self.last_name:
             raise ValidationError("Both first name and last name are required.")
+        
+        if self.role == RoleChoices.ADMIN:
+            return
 
         # Cannot have both IDs
         if self.student_id and self.staff_id:
@@ -45,6 +50,12 @@ class CustomUser(AbstractUser):
                 raise ValidationError("A teacher cannot have a student_id.")
 
     def save(self, *args, **kwargs):
+        if self.is_superuser:
+            self.role = RoleChoices.ADMIN
+            self.student_id = None
+            self.staff_id = None
+            self.department = None
+
         self.full_clean() 
         super().save(*args, **kwargs)
 
