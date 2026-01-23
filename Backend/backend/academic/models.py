@@ -3,6 +3,21 @@ from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from  datetime import datetime
+from decimal import Decimal
+
+GRADE_POINTS = {
+    "A+": Decimal("4.0"),
+    "A": Decimal("4.0"),
+    "A-": Decimal("3.75"),
+    "B+": Decimal("3.5"),
+    "B": Decimal("3.0"),
+    "B-": Decimal("2.75"),
+    "C+": Decimal("2.5"),
+    "C": Decimal("2.0"),
+    "C-": Decimal("1.75"),
+    "D": Decimal("1.0"),
+    "F": Decimal("0.0"),
+}
 
 class Department(models.Model):
     name = models.CharField(max_length=100)
@@ -31,6 +46,29 @@ class Semester(models.Model):
 
     class Meta:
         ordering = ['-start_date']
+
+    def  get_student_gpa(self, student):
+        enrollments = self.enrollments.filter(student=student, grade__isnull=False).select_related("course")
+
+        if not enrollments.exists():
+            return None
+
+        total_quality_points = Decimal("0.0")
+        total_credits = 0
+
+        for enrollment in enrollments:
+            grade_point = GRADE_POINTS.get(enrollment.grade)
+            if grade_point is None:
+                continue
+
+            credits = enrollment.course.credit_hours
+            total_quality_points += grade_point * credits
+            total_credits += credits
+
+        if total_credits == 0:
+            return None
+
+        return round(total_quality_points / total_credits, 2)
 
     def __str__(self):
         return f"{self.year} | {self.name}"
@@ -82,8 +120,32 @@ class Enrollment(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    @classmethod
+    def calculate_cumulative_gpa(cls, student):
+        enrollments = cls.objects.filter(student=student, grade__isnull=False).select_related("course")
+
+        if not enrollments.exists():
+            return None
+
+        total_quality_points = Decimal("0.0")
+        total_credits = 0
+
+        for enrollment in enrollments:
+            grade_point = GRADE_POINTS.get(enrollment.grade)
+            if grade_point is None:
+                continue
+
+            credits = enrollment.course.credit_hours
+            total_quality_points += grade_point * credits
+            total_credits += credits
+
+        if total_credits == 0:
+            return None
+
+        return round(total_quality_points / total_credits, 2)
+
     def __str__(self):
-        return f"{self.student.first_name} {self.student.last_name} | {self.course.name} | {self.semester.year} {self.semester.name}"
+        return f"{self.student.first_name} {self.student.last_name} | {self.semester.year} {self.semester.name} | {self.course.name}"
     
 class GradeSubmission(models.Model):
     enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="gradesubmission")
@@ -106,7 +168,6 @@ class GradeSubmission(models.Model):
 
         if not enrollment.semester.is_active:
             raise ValidationError("Grades can only be submitted in an active semester.")
-
 
     def calculate_grade(self):
         if self.mark >= 90:
@@ -142,4 +203,4 @@ class GradeSubmission(models.Model):
         enrollment.save(update_fields=["grade"])
 
     def __str__(self):
-        return f"{self.enrollment.course.name} | {self.grade}"         
+        return f"{self.enrollment} | {self.grade}" 

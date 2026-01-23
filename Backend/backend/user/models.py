@@ -60,4 +60,4 @@ class CustomUser(AbstractUser):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.username} ({self.get_role_display()})"
+        return f"{self.first_name} {self.last_name} | ({self.get_role_display()})"
