@@ -1,7 +1,9 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
-import datetime
+from django.core.exceptions import ValidationError
+from  datetime import datetime
+
 class Department(models.Model):
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=20, unique=True)
@@ -41,6 +43,10 @@ class CourseAssignment(models.Model):
 
     class Meta:
         unique_together = ('course', 'teacher', 'semester')
+    
+    def clean(self):
+        if self.teacher.role != "TEACHER":
+            raise ValidationError("Only users with TEACHER role can be assigned to courses.")
 
     def __str__(self):
         return f"{self.teacher.first_name} {self.teacher.last_name} | {self.course.name} | {self.semester.year} {self.semester.name}"
@@ -54,6 +60,27 @@ class Enrollment(models.Model):
 
     class Meta:
         unique_together = ('student', 'course', 'semester')
+    
+    def clean(self):
+        # Rule 1: Only students can be enrolled
+        if self.student.role != "STUDENT":
+            raise ValidationError("Only users with STUDENT role can be enrolled.")
+
+        # Rule 2: Semester must be active
+        if not self.semester.is_active:
+            raise ValidationError("Enrollment is only allowed in an active semester.")
+
+        # Rule 3: Course must be active
+        if not self.course.is_active:
+            raise ValidationError("Cannot enroll in an inactive course.")
+
+        # Rule 4: Department consistency
+        if self.student.department != self.course.department:
+            raise ValidationError("Student can only enroll in courses from their department.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.student.first_name} {self.student.last_name} | {self.course.name} | {self.semester.year} {self.semester.name}"
@@ -64,6 +91,22 @@ class GradeSubmission(models.Model):
     mark = models.DecimalField(max_digits=5, decimal_places=3, validators=[MinValueValidator(0), MaxValueValidator(100)])
     grade = models.CharField(max_length=5, blank=True)
     submitted_date = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        teacher = self.submitted_by
+        enrollment = self.enrollment
+
+        if teacher.role != "TEACHER":
+            raise ValidationError("Only teachers can submit grades.")
+
+        is_assigned = enrollment.course.assignments.filter(teacher=teacher, semester=enrollment.semester).exists()
+
+        if not is_assigned:
+            raise ValidationError("Teacher is not assigned to this course in this semester.")
+
+        if not enrollment.semester.is_active:
+            raise ValidationError("Grades can only be submitted in an active semester.")
+
 
     def calculate_grade(self):
         if self.mark >= 90:
@@ -89,6 +132,7 @@ class GradeSubmission(models.Model):
         return "F"
 
     def save(self, *args, **kwargs):
+        self.full_clean()
         self.grade = self.calculate_grade()
         super().save(*args, **kwargs)
 
@@ -96,3 +140,6 @@ class GradeSubmission(models.Model):
         enrollment = self.enrollment
         enrollment.grade = self.grade
         enrollment.save(update_fields=["grade"])
+
+    def __str__(self):
+        return f"{self.enrollment.course.name} | {self.grade}"         
