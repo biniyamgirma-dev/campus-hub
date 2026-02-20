@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission
+from .models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, Section, AcademicStatus, AcademicStatusChoices
 
 # Register models normally
 admin.site.register(Department)
@@ -59,3 +59,16 @@ class EnrollmentAdmin(admin.ModelAdmin):
         return obj.student.username  # fallback if no name
     student_full_name.short_description = "Student"
     student_full_name.admin_order_field = "student__first_name"
+
+@admin.register(Section)
+class SectionAdmin(admin.ModelAdmin):
+    list_display = ("department", "name", "program_year", "entry_year", "capacity", "is_active")
+    list_filter = ("department", "program_year", "is_active")
+    search_fields = ("department__name", "name")
+
+@admin.register(AcademicStatus)
+class AcademicStatusAdmin(admin.ModelAdmin):
+    list_display = ("student", "semester", "section", "status", "semester_gpa", "cumulative_gpa", "updated_at")
+    readonly_fields = ("semester_gpa", "cumulative_gpa", "updated_at", "created_at")
+    list_filter = ("status", "semester")
+    search_fields = ("student__first_name", "student__last_name", "student__username")
