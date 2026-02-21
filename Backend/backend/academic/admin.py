@@ -1,29 +1,31 @@
 from django.contrib import admin
-from .models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, Section, AcademicStatus, AcademicStatusChoices
+from .models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, Section, AcademicStatus
 
+# -------------------------
 # Register models normally
+# -------------------------
 admin.site.register(Department)
 admin.site.register(Course)
 admin.site.register(Semester)
 admin.site.register(CourseAssignment)
 admin.site.register(GradeSubmission)
 
+# -------------------------
+# Enrollment admin
+# -------------------------
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):
     list_display = ("student_full_name", "semester", "course", "grade", "semester_gpa")
     list_filter = ("semester", "course")
     readonly_fields = ("semester_gpa",)
     search_fields = ("student__first_name", "student__last_name", "course__name")
-
-    # Order enrollments alphabetically by student full name, then course
     ordering = ("student__first_name", "student__last_name", "course__name")
 
-    # cache to track first enrollment per student in a semester
+    # Cache first enrollment per student to show semester GPA only once
     def _ensure_first_enrollment_cache(self, semester_id):
         if not hasattr(self, "_first_enrollment_cache"):
             self._first_enrollment_cache = {}
         if semester_id not in self._first_enrollment_cache:
-            # map student_id -> first enrollment pk in this semester
             qs = Enrollment.objects.filter(semester_id=semester_id).order_by(
                 "student__first_name", "student__last_name", "pk"
             ).values_list("student_id", "pk")
@@ -33,7 +35,6 @@ class EnrollmentAdmin(admin.ModelAdmin):
                     m[student_id] = pk
             self._first_enrollment_cache[semester_id] = m
 
-    # Display semester GPA only once per student
     def semester_gpa(self, obj):
         if not obj or not obj.semester_id:
             return "-"
@@ -56,19 +57,33 @@ class EnrollmentAdmin(admin.ModelAdmin):
     def student_full_name(self, obj):
         if obj.student.first_name and obj.student.last_name:
             return f"{obj.student.first_name} {obj.student.last_name}"
-        return obj.student.username  # fallback if no name
+        return obj.student.username
     student_full_name.short_description = "Student"
     student_full_name.admin_order_field = "student__first_name"
 
+# -------------------------
+# Section admin
+# -------------------------
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
     list_display = ("department", "name", "program_year", "entry_year", "capacity", "is_active")
     list_filter = ("department", "program_year", "is_active")
     search_fields = ("department__name", "name")
 
+# -------------------------
+# AcademicStatus admin
+# -------------------------
 @admin.register(AcademicStatus)
 class AcademicStatusAdmin(admin.ModelAdmin):
-    list_display = ("student", "semester", "section", "status", "semester_gpa", "cumulative_gpa", "updated_at")
+    list_display = ("student", "semester", "get_section", "status", "semester_gpa", "cumulative_gpa", "updated_at")
     readonly_fields = ("semester_gpa", "cumulative_gpa", "updated_at", "created_at")
     list_filter = ("status", "semester")
     search_fields = ("student__first_name", "student__last_name", "student__username")
+
+    # -------------------------
+    # Improved: display section safely
+    # -------------------------
+    def get_section(self, obj):
+        # Return section name or fallback
+        return obj.section.name if obj.section else "Not Assigned"
+    get_section.short_description = "Section"

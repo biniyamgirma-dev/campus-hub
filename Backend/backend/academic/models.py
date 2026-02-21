@@ -1,10 +1,10 @@
+# academic/models.py
 from decimal import Decimal, ROUND_HALF_UP
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-# Grade points as Decimals (keep your original mapping)
 GRADE_POINTS = {
     "A+": Decimal("4.0"),
     "A": Decimal("4.0"),
@@ -60,7 +60,6 @@ class Semester(models.Model):
         """
         student_id = getattr(student, "pk", student)
         enrollments = self.enrollments.filter(student_id=student_id, grade__isnull=False).select_related("course")
-
         if not enrollments.exists():
             return None
 
@@ -193,7 +192,6 @@ class GradeSubmission(models.Model):
             raise ValidationError("Grades can only be submitted in an active semester.")
 
         # Do not allow submissions that would overwrite a finalized enrollment.
-        # (We don't have is_final field here; we avoid overwrite if Enrollment.grade already exists.)
         if enrollment.grade:
             raise ValidationError("This enrollment already has a grade. Submissions cannot overwrite an existing grade.")
 
@@ -257,7 +255,7 @@ class Section(models.Model):
         ordering = ("department", "program_year", "name")
 
     def __str__(self):
-        return f" Department - {self.department.name} | Entry Year - {self.entry_year} | Current Year - {self.program_year} | Section {self.name}"
+        return f"Department - {self.department.name} | Entry Year - {self.entry_year} | Current Year - {self.program_year} | Section {self.name}"
 
 
 class AcademicStatusChoices(models.TextChoices):
@@ -291,7 +289,8 @@ class AcademicStatus(models.Model):
         if getattr(self.student, "role", None) != "STUDENT":
             raise ValidationError("Academic status can only be assigned to students.")
 
-    def determine_status_from_gpa(self, semester_gpa, cumulative_gpa):
+    @staticmethod
+    def determine_status_from_gpa(semester_gpa, cumulative_gpa):
         """
         Determine status using example rules:
         - semester_gpa >= 2.00 -> ACTIVE
@@ -323,7 +322,7 @@ class AcademicStatus(models.Model):
         """
         sem_gpa = semester.get_student_gpa(student)
         cum_gpa = Enrollment.calculate_cumulative_gpa(student)
-        status = cls().determine_status_from_gpa(sem_gpa, cum_gpa)
+        status = cls.determine_status_from_gpa(sem_gpa, cum_gpa)
 
         obj, created = cls.objects.update_or_create(
             student=student,
@@ -336,5 +335,24 @@ class AcademicStatus(models.Model):
         )
         return obj
 
+    @classmethod
+    def assign_section_for_student_semester(cls, student, semester, section):
+        """
+        Assign a section for a student for a specific semester.
+        This is called after registration/approval when admin assigns section.
+        """
+        obj, created = cls.objects.update_or_create(
+            student=student,
+            semester=semester,
+            defaults={"section": section},
+        )
+        # Recompute status/gpa fields (if you want)
+        obj.semester_gpa = semester.get_student_gpa(student)
+        obj.cumulative_gpa = Enrollment.calculate_cumulative_gpa(student)
+        obj.status = cls.determine_status_from_gpa(obj.semester_gpa, obj.cumulative_gpa)
+        obj.save(update_fields=["section", "semester_gpa", "cumulative_gpa", "status", "updated_at"])
+        return obj
+
     def __str__(self):
-        return f"{self.student.first_name} {self.student.last_name} | {self.semester.year} {self.semester.name} | {self.status}"
+        sec_name = self.section.name if self.section else "No Section"
+        return f"{self.student.first_name} {self.student.last_name} | {self.semester.year} {self.semester.name} | {sec_name} | {self.status}"
