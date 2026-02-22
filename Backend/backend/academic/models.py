@@ -1,11 +1,9 @@
-# academic/models.py
 from decimal import Decimal, ROUND_HALF_UP
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-# inside Enrollment.clean()
 GRADE_POINTS = {
     "A+": Decimal("4.0"),
     "A": Decimal("4.0"),
@@ -55,10 +53,6 @@ class Semester(models.Model):
         return f"{self.year} | {self.name}"
 
     def get_student_gpa(self, student):
-        """
-        Compute semester GPA for a student (Decimal rounded to 2 places) or None.
-        Accepts either user instance or user pk.
-        """
         student_id = getattr(student, "pk", student)
         enrollments = self.enrollments.filter(student_id=student_id, grade__isnull=False).select_related("course")
         if not enrollments.exists():
@@ -146,6 +140,15 @@ class Enrollment(models.Model):
         if not approved_registration_exists:
             raise ValidationError("Student must have an approved registration before enrollment.")
         
+        # 7) BLOCK enrollment without section assignment
+        from academic.models import SectionAssignment
+        assigned = SectionAssignment.objects.filter(
+            student=self.student,
+            semester=self.semester,
+            ).exists()
+
+        if not assigned:
+            raise ValidationError("Student must be assigned to a section before enrollment.")
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -153,10 +156,6 @@ class Enrollment(models.Model):
 
     @classmethod
     def calculate_cumulative_gpa(cls, student):
-        """
-        Calculate cumulative GPA (CGPA) across ALL graded enrollments for the student.
-        Returns Decimal rounded to 2 places, or None if no graded enrollments.
-        """
         enrollments = cls.objects.filter(student=student, grade__isnull=False).select_related("course")
         if not enrollments.exists():
             return None
@@ -200,11 +199,9 @@ class GradeSubmission(models.Model):
         if not is_assigned:
             raise ValidationError("Teacher is not assigned to this course in this semester.")
 
-        # Only allow new submissions while semester active
         if not self.pk and not enrollment.semester.is_active:
             raise ValidationError("Grades can only be submitted in an active semester.")
 
-        # Do not allow submissions that would overwrite a finalized enrollment.
         if enrollment.grade:
             raise ValidationError("This enrollment already has a grade. Submissions cannot overwrite an existing grade.")
 
@@ -233,33 +230,26 @@ class GradeSubmission(models.Model):
         return "F"
 
     def save(self, *args, **kwargs):
-        # Validate and compute derived grade
         self.full_clean()
         self.grade = self.calculate_grade()
         super().save(*args, **kwargs)
 
-        # Only set enrollment.grade if not already set (prevent overwriting).
         enrollment = self.enrollment
         if not enrollment.grade:
             enrollment.grade = self.grade
             enrollment.save(update_fields=["grade"])
 
-        # After grade is recorded, update AcademicStatus for this student & semester
         AcademicStatus.update_for_student_and_semester(enrollment.student, enrollment.semester)
 
     def __str__(self):
         return f"{self.enrollment} | {self.grade}"
 
 
-# ---------------------------
-# Section & AcademicStatus
-# ---------------------------
-
 class Section(models.Model):
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name="sections")
-    name = models.CharField(max_length=20)  # e.g. "A"
-    entry_year = models.PositiveIntegerField()  # e.g. 2025
-    program_year = models.PositiveSmallIntegerField()  # e.g. 1,2,3
+    name = models.CharField(max_length=20)
+    entry_year = models.PositiveIntegerField()
+    program_year = models.PositiveSmallIntegerField()
     capacity = models.PositiveSmallIntegerField(default=40)
     is_active = models.BooleanField(default=True)
 
@@ -268,7 +258,26 @@ class Section(models.Model):
         ordering = ("department", "program_year", "name")
 
     def __str__(self):
-        return f"Department - {self.department.name} | Entry Year - {self.entry_year} | Current Year - {self.program_year} | Section {self.name}"
+        return f"Department - {self.department.name} | Entry Year - {self.entry_year} | Year - {self.program_year} | Section {self.name}"
+
+
+class SectionAssignment(models.Model):
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="section_assignments")
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name="section_assignments")
+    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="section_assignments")
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("student", "semester")
+
+    def clean(self):
+        if getattr(self.student, "role", None) != "STUDENT":
+            raise ValidationError("Only students can be assigned to sections.")
+        if not self.section.is_active:
+            raise ValidationError("Section is not active.")
+
+    def __str__(self):
+        return f"{self.student.first_name} {self.student.last_name} | {self.semester} | Section {self.section.name}"
 
 
 class AcademicStatusChoices(models.TextChoices):
@@ -279,20 +288,14 @@ class AcademicStatusChoices(models.TextChoices):
 
 
 class AcademicStatus(models.Model):
-    """
-    Snapshot of a student's academic standing for a semester.
-    - student + semester unique
-    - stores semester_gpa and cumulative_gpa (CGPA)
-    - stores section (where student is assigned for that semester)
-    """
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="academic_statuses")
     semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name="academic_statuses")
     section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True, blank=True, related_name="academic_statuses")
     semester_gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-    cumulative_gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)  # CGPA
+    cumulative_gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=AcademicStatusChoices.choices, default=AcademicStatusChoices.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)  # track auto updates
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ("student", "semester")
@@ -304,13 +307,6 @@ class AcademicStatus(models.Model):
 
     @staticmethod
     def determine_status_from_gpa(semester_gpa, cumulative_gpa):
-        """
-        Determine status using example rules:
-        - semester_gpa >= 2.00 -> ACTIVE
-        - 1.75 <= semester_gpa < 2.00 -> PROBATION
-        - semester_gpa < 1.75 -> DISMISSED
-        If semester_gpa is None, fallback to cumulative_gpa rules (similar thresholds).
-        """
         ref = semester_gpa if semester_gpa is not None else cumulative_gpa
         if ref is None:
             return AcademicStatusChoices.ACTIVE
@@ -321,7 +317,6 @@ class AcademicStatus(models.Model):
         return AcademicStatusChoices.DISMISSED
 
     def save(self, *args, **kwargs):
-        # Ensure GPA fields are computed when saving (so admin-created rows are correct)
         self.semester_gpa = self.semester.get_student_gpa(self.student)
         self.cumulative_gpa = Enrollment.calculate_cumulative_gpa(self.student)
         self.status = self.determine_status_from_gpa(self.semester_gpa, self.cumulative_gpa)
@@ -329,37 +324,33 @@ class AcademicStatus(models.Model):
 
     @classmethod
     def update_for_student_and_semester(cls, student, semester):
-        """
-        Called automatically (e.g. after GradeSubmission.save).
-        Creates or updates the AcademicStatus snapshot for the given student+semester.
-        """
         sem_gpa = semester.get_student_gpa(student)
         cum_gpa = Enrollment.calculate_cumulative_gpa(student)
         status = cls.determine_status_from_gpa(sem_gpa, cum_gpa)
-
         obj, created = cls.objects.update_or_create(
             student=student,
             semester=semester,
-            defaults={
-                "semester_gpa": sem_gpa,
-                "cumulative_gpa": cum_gpa,
-                "status": status,
-            },
+            defaults={"semester_gpa": sem_gpa, "cumulative_gpa": cum_gpa, "status": status},
         )
         return obj
 
     @classmethod
     def assign_section_for_student_semester(cls, student, semester, section):
-        """
-        Assign a section for a student for a specific semester.
-        This is called after registration/approval when admin assigns section.
-        """
-        obj, created = cls.objects.update_or_create(
+        from academic.models import SectionAssignment
+
+        # Ensure SectionAssignment exists
+        SectionAssignment.objects.update_or_create(
             student=student,
             semester=semester,
             defaults={"section": section},
         )
-        # Recompute status/gpa fields (if you want)
+
+        # Update AcademicStatus.section
+        obj, _ = cls.objects.update_or_create(
+            student=student,
+            semester=semester,
+            defaults={"section": section},
+        )
         obj.semester_gpa = semester.get_student_gpa(student)
         obj.cumulative_gpa = Enrollment.calculate_cumulative_gpa(student)
         obj.status = cls.determine_status_from_gpa(obj.semester_gpa, obj.cumulative_gpa)

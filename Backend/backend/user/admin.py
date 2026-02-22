@@ -6,8 +6,6 @@ from .models import CustomUser
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
-
-    # Used when VIEWING / EDITING an existing user
     fieldsets = (
         (None, {"fields": ("username", "password")}),
         (
@@ -61,7 +59,7 @@ class CustomUserAdmin(UserAdmin):
         ),
     )
 
-    list_display = ("username", "email", "role")
+    list_display = ("first_name", "last_name", "email", "role")
     list_filter = ("role",)
     search_fields = ("username", "email", "student_id", "staff_id")
     ordering = ("username",)

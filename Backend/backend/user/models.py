@@ -25,29 +25,30 @@ class CustomUser(AbstractUser):
 
     def clean(self):
         super().clean()
-
-        # Require full name
         if not self.first_name or not self.last_name:
             raise ValidationError("Both first name and last name are required.")
         
         if self.role == RoleChoices.ADMIN:
             return
 
-        # Cannot have both IDs
         if self.student_id and self.staff_id:
             raise ValidationError("A user cannot have both student_id and staff_id set.")
-
-        # Role-based ID requirements
+        
         if self.role == RoleChoices.STUDENT:
             if not self.student_id:
                 raise ValidationError("A student must have a student_id.")
             if self.staff_id:
                 raise ValidationError("A student cannot have a staff_id.")
+            
         elif self.role == RoleChoices.TEACHER:
             if not self.staff_id:
                 raise ValidationError("A teacher must have a staff_id.")
             if self.student_id:
                 raise ValidationError("A teacher cannot have a student_id.")
+            
+        elif self.role == RoleChoices.STUDENT or RoleChoices.TEACHER:
+            if not self.department:
+                raise ValidationError("Department is required for students and teachers.")
 
     def save(self, *args, **kwargs):
         if self.is_superuser:
