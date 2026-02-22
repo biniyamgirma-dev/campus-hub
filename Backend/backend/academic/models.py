@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
+# inside Enrollment.clean()
 GRADE_POINTS = {
     "A+": Decimal("4.0"),
     "A": Decimal("4.0"),
@@ -133,6 +134,18 @@ class Enrollment(models.Model):
         student_dept = getattr(self.student, "department", None)
         if student_dept and self.course.department and student_dept != self.course.department:
             raise ValidationError("Student can only enroll in courses from their department.")
+        
+        # 6) Preventing non registered users from enrollment
+        from registration.models import Registration, RegistrationStatus
+        approved_registration_exists = Registration.objects.filter(
+            student=self.student,
+            semester=self.semester,
+            status=RegistrationStatus.APPROVED,
+            ).exists()
+
+        if not approved_registration_exists:
+            raise ValidationError("Student must have an approved registration before enrollment.")
+        
 
     def save(self, *args, **kwargs):
         self.full_clean()
