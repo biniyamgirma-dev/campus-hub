@@ -192,10 +192,7 @@ class Enrollment(models.Model):
     # --------------------------------------------------------
     @classmethod
     def calculate_cumulative_gpa(cls, student):
-        enrollments = cls.objects.filter(
-            student=student,
-            grade__isnull=False
-        ).select_related("course")
+        enrollments = cls.objects.filter(student=student, grade__isnull=False).select_related("course")
 
         if not enrollments.exists():
             return None
@@ -223,24 +220,11 @@ class Enrollment(models.Model):
 # Handles grade entry by teachers for enrolled students
 # ============================================================
 class GradeSubmission(models.Model):
-    enrollment = models.ForeignKey(
-        Enrollment,
-        on_delete=models.CASCADE,
-        related_name="gradesubmission"
-    )
-    submitted_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="submitted_grades"
-    )
-    mark = models.DecimalField(
-        max_digits=5,
-        decimal_places=3,
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
-    )  # Raw numerical mark (0–100)
-
+    enrollment = models.ForeignKey(Enrollment, on_delete=models.CASCADE, related_name="gradesubmission")
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="submitted_grades")
+    mark = models.DecimalField(max_digits=5, decimal_places=3, validators=[MinValueValidator(0), MaxValueValidator(100)])  # Raw numerical mark (0–100)
     grade = models.CharField(max_length=2, blank=True)       # Derived letter grade
-    submitted_date = models.DateTimeField(auto_now_add=True) # Submission timestamp
+    submitted_date = models.DateTimeField(auto_now_add=True) 
 
     # --------------------------------------------------------
     # GRADE SUBMISSION RULES & VALIDATIONS
@@ -254,10 +238,7 @@ class GradeSubmission(models.Model):
             raise ValidationError("Only teachers can submit grades.")
 
         # 2️ Teacher must be assigned to this course in this semester
-        is_assigned = enrollment.course.assignments.filter(
-            teacher=teacher,
-            semester=enrollment.semester
-        ).exists()
+        is_assigned = enrollment.course.assignments.filter(teacher=teacher, semester=enrollment.semester).exists()
 
         if not is_assigned:
             raise ValidationError("Teacher is not assigned to this course in this semester.")
@@ -268,9 +249,7 @@ class GradeSubmission(models.Model):
 
         # 4️ Prevent overwriting existing grades
         if enrollment.grade:
-            raise ValidationError(
-                "This enrollment already has a grade. Submissions cannot overwrite an existing grade."
-            )
+            raise ValidationError("This enrollment already has a grade. Submissions cannot overwrite an existing grade.")
 
     # --------------------------------------------------------
     # Convert numerical mark to letter grade
@@ -331,11 +310,7 @@ class GradeSubmission(models.Model):
 # Represents a physical/academic class grouping
 # ============================================================
 class Section(models.Model):
-    department = models.ForeignKey(
-        Department,
-        on_delete=models.CASCADE,
-        related_name="sections"
-    )
+    department = models.ForeignKey(Department, on_delete=models.CASCADE,related_name="sections")
     name = models.CharField(max_length=20)                   # Section name (A, B, C…)
     entry_year = models.PositiveIntegerField()               # Student intake year
     program_year = models.PositiveSmallIntegerField()        # Year of study (1–5)
@@ -360,21 +335,9 @@ class Section(models.Model):
 # Assigns students to sections per semester
 # ============================================================
 class SectionAssignment(models.Model):
-    student = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="section_assignments"
-    )
-    semester = models.ForeignKey(
-        Semester,
-        on_delete=models.CASCADE,
-        related_name="section_assignments"
-    )
-    section = models.ForeignKey(
-        Section,
-        on_delete=models.CASCADE,
-        related_name="section_assignments"
-    )
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="section_assignments")
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE, related_name="section_assignments")
+    section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name="section_assignments")
     assigned_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -414,43 +377,12 @@ class AcademicStatusChoices(models.TextChoices):
 # Tracks student performance and standing per semester
 # ============================================================
 class AcademicStatus(models.Model):
-    student = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="academic_statuses"
-    )
-    semester = models.ForeignKey(
-        Semester,
-        on_delete=models.CASCADE,
-        related_name="academic_statuses"
-    )
-    section = models.ForeignKey(
-        Section,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="academic_statuses"
-    )
-
-    semester_gpa = models.DecimalField(
-        max_digits=4,
-        decimal_places=2,
-        null=True,
-        blank=True
-    )
-    cumulative_gpa = models.DecimalField(
-        max_digits=4,
-        decimal_places=2,
-        null=True,
-        blank=True
-    )
-
-    status = models.CharField(
-        max_length=20,
-        choices=AcademicStatusChoices.choices,
-        default=AcademicStatusChoices.ACTIVE
-    )
-
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="academic_statuses")
+    semester = models.ForeignKey(Semester, on_delete=models.CASCADE,related_name="academic_statuses")
+    section = models.ForeignKey(Section, on_delete=models.SET_NULL, null=True, blank=True, related_name="academic_statuses")
+    semester_gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    cumulative_gpa = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=AcademicStatusChoices.choices, default=AcademicStatusChoices.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -520,11 +452,7 @@ class AcademicStatus(models.Model):
         from academic.models import SectionAssignment
 
         # Ensure section assignment exists
-        SectionAssignment.objects.update_or_create(
-            student=student,
-            semester=semester,
-            defaults={"section": section},
-        )
+        SectionAssignment.objects.update_or_create(student=student, semester=semester, defaults={"section": section})
 
         # Update academic status with section info
         obj, _ = cls.objects.update_or_create(

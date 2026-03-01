@@ -55,9 +55,7 @@ class CustomUser(AbstractUser):
 
         # 3️ A user cannot be both student and teacher
         if self.student_id and self.staff_id:
-            raise ValidationError(
-                "A user cannot have both student_id and staff_id set."
-            )
+            raise ValidationError("A user cannot have both student_id and staff_id set.")
 
         # 4️ Student-specific validation
         if self.role == RoleChoices.STUDENT:
@@ -76,9 +74,7 @@ class CustomUser(AbstractUser):
         # 6️ Department is mandatory for students and teachers
         if self.role in (RoleChoices.STUDENT, RoleChoices.TEACHER):
             if not self.department:
-                raise ValidationError(
-                    "Department is required for students and teachers."
-                )
+                raise ValidationError("Department is required for students and teachers.")
 
     # --------------------------------------------------------
     # SAVE METHOD OVERRIDE

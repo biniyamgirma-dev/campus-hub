@@ -35,7 +35,7 @@ class Registration(models.Model):
     # REGISTRATION VALIDATION RULES
     # --------------------------------------------------------
     def clean(self):
-
+        
         # 1️ Only students can register
         if getattr(self.student, "role", None) != "STUDENT":
             raise ValidationError("Only students can register for courses.")
@@ -59,9 +59,7 @@ class Registration(models.Model):
         if student_dept:
             for course in self.courses.all():
                 if course.department != student_dept:
-                    raise ValidationError(
-                        f"Course {course.code} does not belong to student's department."
-                    )
+                    raise ValidationError(f"Course {course.code} does not belong to student's department.")
 
     def save(self, *args, **kwargs):
         self.full_clean()
