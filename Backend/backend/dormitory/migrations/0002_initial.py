@@ -10,18 +10,22 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('registration', '0001_initial'),
+        ('dormitory', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='registration',
+            model_name='dormitoryassignment',
             name='student',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='registrations', to=settings.AUTH_USER_MODEL),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='dormitory_assignments', to=settings.AUTH_USER_MODEL),
         ),
         migrations.AlterUniqueTogether(
-            name='registration',
+            name='dormitory',
+            unique_together={('block', 'room', 'gender')},
+        ),
+        migrations.AlterUniqueTogether(
+            name='dormitoryassignment',
             unique_together={('student', 'semester')},
         ),
     ]

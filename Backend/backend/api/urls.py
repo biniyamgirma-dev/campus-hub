@@ -1,4 +1,8 @@
+# academic/api/urls.py
+from rest_framework.routers import DefaultRouter
 from . import views
-from rest_framework.urls import path
 
-urlpatterns = []
+router = DefaultRouter()
+router.register(r"departments", views.DepartmentView, basename="department")
+
+urlpatterns = router.urls
