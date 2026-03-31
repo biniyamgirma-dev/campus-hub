@@ -99,6 +99,12 @@ class Semester(models.Model):
 
         raw = total_quality_points / Decimal(total_credits)
         return raw.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    
+    def clean(self):
+        if self.is_active:
+            from academic.models import Semester
+            if Semester.objects.exclude(pk=self.pk).filter(is_active=True).exists():
+                raise ValidationError("Only one semester can be active at a time.")
 
 
 # ============================================================

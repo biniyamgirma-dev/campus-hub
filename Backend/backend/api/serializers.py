@@ -25,3 +25,8 @@ class CourseSerializer(serializers.ModelSerializer):
             "credit_hours",
             "is_active",
         ]
+
+class SemesterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Semester
+        fields = '__all__'
