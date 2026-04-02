@@ -28,3 +28,8 @@ class IsTeacherOrReadOnly(BasePermission):
             return request.user.is_authenticated
         
         return request.user.role == "TEACHER"
+    
+class IsTeacherOrAdmin(BasePermission):
+
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in ["TEACHER", "ADMIN"]

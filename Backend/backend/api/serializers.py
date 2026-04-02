@@ -47,3 +47,15 @@ class GradeSubmissionSerializer(serializers.ModelSerializer):
         model = GradeSubmission
         fields = "__all__"
         read_only_fields = ["grade", "submitted_by"]
+
+class GradeChangeRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GradeChangeRequest
+        fields = "__all__"
+        read_only_fields = [
+            "old_grade",
+            "requested_by",
+            "reviewed_by",
+            "status",
+            "reviewed_at",
+        ]

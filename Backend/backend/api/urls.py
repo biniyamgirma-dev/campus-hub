@@ -9,5 +9,6 @@ router.register(r"semesters", views.SemesterViewSet, basename="semester")
 router.register(r"course-assignment", views.CourseAssignmentViewSet, basename="course-assignment")
 router.register(r"enrollment", views.EnrollmentViewSet, basename="enrollment")
 router.register(r"grade-submission", views.GradeSubmissionViewSet, basename="grade-submission")
+router.register(r"grade-change-request", views.GradeChangeRequestViewSet, basename="grade-change-request")
 
 urlpatterns = router.urls

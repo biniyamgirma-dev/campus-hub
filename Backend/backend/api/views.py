@@ -1,12 +1,15 @@
 from django.shortcuts import render
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.utils import timezone
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import get_user_model
-from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, Section, SectionAssignment, AcademicStatus
+from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, GradeChangeRequest, Section, SectionAssignment, AcademicStatus
 from dormitory.models import Dormitory, DormitoryAssignment
 from registration.models import Registration, RegistrationStatus
-from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer, EnrollmentSerializer, GradeSubmissionSerializer
-from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly
+from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer, EnrollmentSerializer, GradeSubmissionSerializer, GradeChangeRequestSerializer
+from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly, IsTeacherOrAdmin
 
 
 User = get_user_model()
@@ -64,7 +67,9 @@ class SemesterViewSet(ModelViewSet):
         # Students & teachers → show all but ordered (active first)
         return Semester.objects.all().order_by("-is_active", "-start_date")
 
-    # Permissions logic
+    # --------------------------------------------------------
+    # PERMISSIONS
+    # --------------------------------------------------------
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:
             return [IsAuthenticated()]   # Logged-in users can view
@@ -148,13 +153,19 @@ class EnrollmentViewSet(ModelViewSet):
         instance = serializer.save()
         instance.full_clean()
 
-
-
-
+# ============================================================
+# GRADE SUBMISSION VIEWSET
+# - Admin → view all submissions
+# - Teacher → submit & view their course grades
+# - Student → view only their grades
+# ============================================================
 class GradeSubmissionViewSet(ModelViewSet):
     serializer_class = GradeSubmissionSerializer
     permission_classes = [IsTeacherOrReadOnly]
 
+    # --------------------------------------------------------
+    # QUERYSET (ROLE-BASED ACCESS)
+    # --------------------------------------------------------
     def get_queryset(self):
         user = self.request.user
 
@@ -175,3 +186,81 @@ class GradeSubmissionViewSet(ModelViewSet):
     def perform_create(self, serializer):
         # Automatically set teacher
         serializer.save(submitted_by=self.request.user)
+
+# ============================================================
+# GRADE CHANGE REQUEST VIEWSET
+# - Admin → approve/reject & view all requests
+# - Teacher → create & view their requests
+# - Student → view their grade change requests
+# ============================================================
+class GradeChangeRequestViewSet(ModelViewSet):
+    serializer_class = GradeChangeRequestSerializer
+    permission_classes = [IsTeacherOrAdmin]
+
+    # --------------------------------------------------------
+    # QUERYSET (ROLE-BASED ACCESS)
+    # --------------------------------------------------------
+    def get_queryset(self):
+        user = self.request.user
+
+        # ADMIN → all requests
+        if user.role == "ADMIN":
+            return GradeChangeRequest.objects.all()
+
+        # TEACHER → only their requests
+        if user.role == "TEACHER":
+            return GradeChangeRequest.objects.filter(requested_by=user)
+
+        # STUDENT → only their enrollments
+        if user.role == "STUDENT":
+            return GradeChangeRequest.objects.filter(enrollment__student=user)
+
+        return GradeChangeRequest.objects.none()
+
+    def perform_create(self, serializer):
+        enrollment = serializer.validated_data["enrollment"]
+
+        serializer.save(requested_by=self.request.user, old_grade=enrollment.grade)
+
+    # --------------------------------------------------------
+    # ADMIN ACTION: APPROVE
+    # --------------------------------------------------------
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        obj = self.get_object()
+
+        if request.user.role != "ADMIN":
+            return Response({"error": "Only admin can approve."}, status=403)
+
+        if obj.status != "PENDING":
+            return Response({"error": "Already processed."}, status=400)
+
+        obj.status = "APPROVED"
+        obj.reviewed_by = request.user
+        obj.reviewed_at = timezone.now()
+        obj.save()
+
+        # Apply change
+        obj.apply_change()
+
+        return Response({"status": "Approved and applied"})
+
+    # --------------------------------------------------------
+    # ADMIN ACTION: REJECT
+    # --------------------------------------------------------
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        obj = self.get_object()
+
+        if request.user.role != "ADMIN":
+            return Response({"error": "Only admin can reject."}, status=403)
+
+        if obj.status != "PENDING":
+            return Response({"error": "Already processed."}, status=400)
+
+        obj.status = "REJECTED"
+        obj.reviewed_by = request.user
+        obj.reviewed_at = timezone.now()
+        obj.save()
+
+        return Response({"status": "Rejected"})
