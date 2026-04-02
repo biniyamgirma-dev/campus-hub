@@ -317,6 +317,82 @@ class GradeSubmission(models.Model):
 
     def __str__(self):
         return f"{self.enrollment} | {self.grade}"
+    
+# ============================================================
+# GRADE CHANGE REQUEST MODEL
+# Handles correction of already submitted grades
+# ============================================================
+class GradeChangeRequest(models.Model):
+
+    # Link to original enrollment
+    enrollment = models.ForeignKey("academic.Enrollment", on_delete=models.CASCADE, related_name="grade_change_requests")
+
+    # Who requested the change (usually teacher)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="requested_grade_changes")
+
+    # Admin who reviews it
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="reviewed_grade_changes")
+
+    # Original grade (snapshot for audit)
+    old_grade = models.CharField(max_length=2)
+
+    # New values requested
+    new_mark = models.DecimalField(max_digits=5, decimal_places=2)
+    new_grade = models.CharField(max_length=2)
+
+    # Why change is needed
+    reason = models.TextField()
+
+    # Status of request
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("PENDING", "Pending"),
+            ("APPROVED", "Approved"),
+            ("REJECTED", "Rejected"),
+        ],
+        default="PENDING"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    # --------------------------------------------------------
+    # VALIDATION RULES
+    # --------------------------------------------------------
+    def clean(self):
+        # Only teachers can request changes
+        if getattr(self.requested_by, "role", None) != "TEACHER":
+            raise ValidationError("Only teachers can request grade changes.")
+
+        # Enrollment must already have a grade
+        if not self.enrollment.grade:
+            raise ValidationError("Cannot request change for ungraded enrollment.")
+
+        # Prevent duplicate pending requests
+        if not self.pk:
+            exists = GradeChangeRequest.objects.filter(enrollment=self.enrollment, status="PENDING").exists()
+            if exists:
+                raise ValidationError("There is already a pending request for this enrollment.")
+
+    # --------------------------------------------------------
+    # APPLY APPROVED CHANGE
+    # --------------------------------------------------------
+    def apply_change(self):
+        enrollment = self.enrollment
+
+        enrollment.grade = self.new_grade
+        enrollment.save(update_fields=["grade"])
+
+        # Recalculate GPA & status
+        from academic.models import AcademicStatus
+        AcademicStatus.update_for_student_and_semester(enrollment.student, enrollment.semester)
+
+    def __str__(self):
+        return f"{self.enrollment} | {self.status}"
 
 
 # ============================================================

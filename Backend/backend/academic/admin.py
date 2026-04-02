@@ -6,6 +6,7 @@ from .models import (
     CourseAssignment,
     Enrollment,
     GradeSubmission,
+    GradeChangeRequest,
     Section,
     SectionAssignment,
     AcademicStatus,
@@ -16,6 +17,7 @@ admin.site.register(Course)
 admin.site.register(Semester)
 admin.site.register(CourseAssignment)
 admin.site.register(GradeSubmission)
+admin.site.register(GradeChangeRequest)
 
 @admin.register(Enrollment)
 class EnrollmentAdmin(admin.ModelAdmin):

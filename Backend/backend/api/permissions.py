@@ -1,4 +1,3 @@
-# academic/api/permissions.py
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 # ============================================================
 # ADMIN OR READ ONLY PERMISSION
