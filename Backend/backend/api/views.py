@@ -5,17 +5,30 @@ from django.contrib.auth import get_user_model
 from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, Section, SectionAssignment, AcademicStatus
 from dormitory.models import Dormitory, DormitoryAssignment
 from registration.models import Registration, RegistrationStatus
-from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer
+from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer, EnrollmentSerializer
 from .permissions import IsAdminOrReadOnly 
 
 
 User = get_user_model()
 
+# ============================================================
+# DEPARTMENT VIEWSET
+# Handles:
+# - list
+# - retrieve
+# - create
+# - update
+# - delete
+# ============================================================
 class DepartmentViewSet(ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+# ============================================================
+# COURSE VIEWSET
+# Handles course operations with role-based filtering
+# ============================================================
 class CourseViewSet(ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -33,6 +46,11 @@ class CourseViewSet(ModelViewSet):
         # Others → see only active courses
         return Course.objects.filter(is_active=True)
     
+# ============================================================
+# Semester VIEWSET
+# Handles Logged-in users can view and Only admin can modify -
+# the semester
+# ============================================================
 class SemesterViewSet(ModelViewSet):
     serializer_class = SemesterSerializer
 
@@ -88,3 +106,44 @@ class CourseAssignmentViewSet(ModelViewSet):
         if self.action in ["list", "retrieve"]:
             return [IsAuthenticated()]
         return [IsAdminOrReadOnly()]
+
+# ============================================================
+# ENROLLMENT VIEWSET
+# - Admin → full access
+# - Student → only their enrollments
+# - Teacher → enrollments in their courses
+# ============================================================
+class EnrollmentViewSet(ModelViewSet):
+    serializer_class = EnrollmentSerializer
+
+    # --------------------------------------------------------
+    # QUERYSET (ROLE-BASED ACCESS)
+    # --------------------------------------------------------
+    def get_queryset(self):
+        user = self.request.user
+
+        # Admin → all enrollments
+        if user.role == "ADMIN":
+            return Enrollment.objects.select_related("student", "course", "semester")
+
+        # Student → only their enrollments
+        if user.role == "STUDENT":
+            return Enrollment.objects.filter(student=user).select_related("course", "semester")
+
+        # Teacher → enrollments in their assigned courses
+        if user.role == "TEACHER":
+            return Enrollment.objects.filter(course__assignments__teacher=user).select_related("student", "course", "semester")
+
+        return Enrollment.objects.none()
+
+    # --------------------------------------------------------
+    # PERMISSIONS
+    # --------------------------------------------------------
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [IsAuthenticated()]
+        return [IsAdminOrReadOnly()]
+    
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        instance.full_clean()
