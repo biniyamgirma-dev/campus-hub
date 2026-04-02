@@ -120,10 +120,18 @@ class CourseAssignment(models.Model):
     class Meta:
         unique_together = ("course", "teacher", "semester")
 
-    # Ensure only teachers are assigned to courses
     def clean(self):
+    # Must be a teacher
         if getattr(self.teacher, "role", None) != "TEACHER":
-            raise ValidationError("Only users with TEACHER role can be assigned to courses.")
+         raise ValidationError("Only users with TEACHER role can be assigned to courses.")
+
+    # Semester must be active
+        if not self.semester.is_active:
+            raise ValidationError("Cannot assign courses in an inactive semester.")
+
+    # Teacher department must match course department
+        if self.teacher.department and self.course.department != self.teacher.department:
+            raise ValidationError("Teacher must belong to the same department as the course.")
 
     def __str__(self):
         return f"{self.teacher.first_name} {self.teacher.last_name} | {self.course.name} | {self.semester.year} {self.semester.name}"

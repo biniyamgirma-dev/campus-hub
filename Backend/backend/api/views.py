@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, Section, SectionAssignment, AcademicStatus
 from dormitory.models import Dormitory, DormitoryAssignment
 from registration.models import Registration, RegistrationStatus
-from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer
+from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer
 from .permissions import IsAdminOrReadOnly 
 
 
@@ -51,3 +51,40 @@ class SemesterViewSet(ModelViewSet):
         if self.action in ["list", "retrieve"]:
             return [IsAuthenticated()]   # Logged-in users can view
         return [IsAdminOrReadOnly()]     # Only admin can modify
+
+# ============================================================
+# COURSE ASSIGNMENT VIEWSET
+# - Admin → full access
+# - Teacher → only their assignments
+# - Student → department-based assignments
+# ============================================================
+class CourseAssignmentViewSet(ModelViewSet):
+    serializer_class = CourseAssignmentSerializer
+
+    # --------------------------------------------------------
+    # QUERYSET LOGIC (ROLE-BASED DATA CONTROL)
+    # --------------------------------------------------------
+    def get_queryset(self):
+        user = self.request.user
+
+        # Admin → all
+        if user.role == "ADMIN":
+            return CourseAssignment.objects.select_related("course", "teacher", "semester")
+
+        # Teacher → only their assignments
+        if user.role == "TEACHER":
+            return CourseAssignment.objects.filter(teacher=user).select_related("course", "semester")
+
+        # Student → courses the student is actually taking
+        if user.role == "STUDENT":
+            return CourseAssignment.objects.filter(course__enrollments__student=user).select_related("course", "teacher", "semester")
+
+        return CourseAssignment.objects.none()
+
+    # --------------------------------------------------------
+    # PERMISSION CONTROL
+    # --------------------------------------------------------
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [IsAuthenticated()]
+        return [IsAdminOrReadOnly()]
