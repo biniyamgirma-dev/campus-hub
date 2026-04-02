@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, Section, SectionAssignment, AcademicStatus
+from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, GradeChangeRequest, Section, SectionAssignment, AcademicStatus
 from dormitory.models import Dormitory, DormitoryAssignment
 from registration.models import Registration, RegistrationStatus
 
@@ -41,3 +41,9 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         model = Enrollment
         fields = "__all__"
         read_only_fields = ("student", "semester", "course", "grade", "enrolled_at")
+
+class GradeSubmissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GradeSubmission
+        fields = "__all__"
+        read_only_fields = ["grade", "submitted_by"]

@@ -5,8 +5,8 @@ from django.contrib.auth import get_user_model
 from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, Section, SectionAssignment, AcademicStatus
 from dormitory.models import Dormitory, DormitoryAssignment
 from registration.models import Registration, RegistrationStatus
-from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer, EnrollmentSerializer
-from .permissions import IsAdminOrReadOnly 
+from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer, EnrollmentSerializer, GradeSubmissionSerializer
+from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly
 
 
 User = get_user_model()
@@ -147,3 +147,31 @@ class EnrollmentViewSet(ModelViewSet):
     def perform_create(self, serializer):
         instance = serializer.save()
         instance.full_clean()
+
+
+
+
+class GradeSubmissionViewSet(ModelViewSet):
+    serializer_class = GradeSubmissionSerializer
+    permission_classes = [IsTeacherOrReadOnly]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # ADMIN → see all
+        if user.role == "ADMIN":
+            return GradeSubmission.objects.all()
+
+        # TEACHER → only their submitted grades
+        if user.role == "TEACHER":
+            return GradeSubmission.objects.filter(submitted_by=user)
+
+        # STUDENT → only their grades
+        if user.role == "STUDENT":
+            return GradeSubmission.objects.filter(enrollment__student=user)
+
+        return GradeSubmission.objects.none()
+
+    def perform_create(self, serializer):
+        # Automatically set teacher
+        serializer.save(submitted_by=self.request.user)
