@@ -13,7 +13,7 @@ from registration.models import Registration, RegistrationStatus
 from .serializers import (DepartmentSerializer, CourseSerializer, SemesterSerializer, 
                           CourseAssignmentSerializer, EnrollmentSerializer, 
                           GradeSubmissionSerializer, GradeChangeRequestSerializer, SectionSerializer, 
-                          SectionAssignmetSerializer, SectionAssignmentSerializer)
+                          SectionAssignmetSerializer, SectionAssignmentSerializer, AcademicStatusSerializer)
 from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly, IsTeacherOrAdmin
 
 
@@ -323,3 +323,59 @@ class SectionAssignmentViewSet(ModelViewSet):
             return SectionAssignment.objects.filter(student__enrollments__course__assignments__teacher=user).distinct()
 
         return SectionAssignment.objects.none() 
+    
+# ============================================================
+# ACADEMIC STATUS VIEWSET
+# - Admin → full access
+# - Student → only their own academic status
+# - Teacher → read-only (students in their courses)
+# ============================================================
+class AcademicStatusViewSet(ModelViewSet):
+    queryset = AcademicStatus.objects.select_related("student", "semester", "section")
+    serializer_class = AcademicStatusSerializer
+    permission_classes = [IsAuthenticated, IsAdminOrReadOnly]
+
+    # --------------------------------------------------------
+    # ROLE-BASED QUERYSET FILTERING
+    # --------------------------------------------------------
+    def get_queryset(self):
+        user = self.request.user
+
+        # ADMIN → sees everything
+        if user.role == "ADMIN":
+            return self.queryset
+
+        # STUDENT → only their own records
+        if user.role == "STUDENT":
+            return self.queryset.filter(student=user)
+
+        # TEACHER → only students in their assigned courses
+        if user.role == "TEACHER":
+            return self.queryset.filter(student__enrollments__course__assignments__teacher=user).distinct()
+
+        return self.queryset.none()
+
+    # --------------------------------------------------------
+    # PREVENT MANUAL CREATION (IMPORTANT)
+    # AcademicStatus is SYSTEM GENERATED
+    # --------------------------------------------------------
+    def create(self, request, *args, **kwargs):
+        from rest_framework.response import Response
+        from rest_framework import status
+
+        return Response(
+            {"detail": "Academic status is auto-generated and cannot be created manually."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # --------------------------------------------------------
+    # OPTIONAL: PREVENT DELETE (recommended)
+    # --------------------------------------------------------
+    def destroy(self, request, *args, **kwargs):
+        from rest_framework.response import Response
+        from rest_framework import status
+
+        return Response(
+            {"detail": "Academic status records cannot be deleted."},
+            status=status.HTTP_403_FORBIDDEN,
+        )

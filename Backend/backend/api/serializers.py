@@ -74,3 +74,21 @@ class SectionAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = SectionAssignment
         fields = '__all__'
+
+from rest_framework import serializers
+from academic.models import AcademicStatus
+
+
+class AcademicStatusSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source="student.get_full_name", read_only=True)
+    section_name = serializers.CharField(source="section.name", read_only=True)
+    class Meta:
+        model = AcademicStatus
+        fields = "__all__"
+        read_only_fields = (
+            "semester_gpa",
+            "cumulative_gpa",
+            "status",
+            "created_at",
+            "updated_at",
+        )
