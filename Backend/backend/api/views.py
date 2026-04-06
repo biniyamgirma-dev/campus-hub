@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, GradeChangeRequest, Section, SectionAssignment, AcademicStatus
 from dormitory.models import Dormitory, DormitoryAssignment
 from registration.models import Registration, RegistrationStatus
-from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer, EnrollmentSerializer, GradeSubmissionSerializer, GradeChangeRequestSerializer
+from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer, EnrollmentSerializer, GradeSubmissionSerializer, GradeChangeRequestSerializer, SectionSerializer
 from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly, IsTeacherOrAdmin
 
 
@@ -264,3 +264,30 @@ class GradeChangeRequestViewSet(ModelViewSet):
         obj.save()
 
         return Response({"status": "Rejected"})
+    
+# ============================================================
+# SECTION VIEWSET
+# - Admin → full access
+# - Student → only their section
+# - Teacher → sections of students they teach
+# ============================================================
+class SectionViewSet(ModelViewSet):
+    serializer_class = SectionSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # ADMIN → see all
+        if user.role == "ADMIN":
+            return Section.objects.all()
+
+        # STUDENT → only their section(s)
+        if user.role == "STUDENT":
+            return Section.objects.filter(section_assignments__student=user).distinct()
+
+        # TEACHER → sections of students in their courses
+        if user.role == "TEACHER":
+            return Section.objects.filter(section_assignments__student__enrollments__course__assignments__teacher=user).distinct()
+
+        return Section.objects.none()

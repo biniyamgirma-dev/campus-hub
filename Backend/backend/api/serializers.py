@@ -59,3 +59,8 @@ class GradeChangeRequestSerializer(serializers.ModelSerializer):
             "status",
             "reviewed_at",
         ]
+
+class SectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section
+        fields = '__all__'
