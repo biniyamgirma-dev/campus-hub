@@ -64,3 +64,13 @@ class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
         fields = '__all__'
+
+class SectionAssignmetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SectionAssignment
+        fields = '__all__'
+
+class SectionAssignmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SectionAssignment
+        fields = '__all__'

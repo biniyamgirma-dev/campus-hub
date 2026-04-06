@@ -5,10 +5,15 @@ from django.utils import timezone
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import get_user_model
-from academic.models import Department, Course, Semester, CourseAssignment, Enrollment, GradeSubmission, GradeChangeRequest, Section, SectionAssignment, AcademicStatus
+from academic.models import (Department, Course, Semester, CourseAssignment, Enrollment, 
+                             GradeSubmission, GradeChangeRequest, Section, SectionAssignment, 
+                             AcademicStatus)
 from dormitory.models import Dormitory, DormitoryAssignment
 from registration.models import Registration, RegistrationStatus
-from .serializers import DepartmentSerializer, CourseSerializer, SemesterSerializer, CourseAssignmentSerializer, EnrollmentSerializer, GradeSubmissionSerializer, GradeChangeRequestSerializer, SectionSerializer
+from .serializers import (DepartmentSerializer, CourseSerializer, SemesterSerializer, 
+                          CourseAssignmentSerializer, EnrollmentSerializer, 
+                          GradeSubmissionSerializer, GradeChangeRequestSerializer, SectionSerializer, 
+                          SectionAssignmetSerializer, SectionAssignmentSerializer)
 from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly, IsTeacherOrAdmin
 
 
@@ -291,3 +296,30 @@ class SectionViewSet(ModelViewSet):
             return Section.objects.filter(section_assignments__student__enrollments__course__assignments__teacher=user).distinct()
 
         return Section.objects.none()
+    
+# ============================================================
+# SECTION ASSIGNMENT VIEWSET
+# - Admin → full access (assign students)
+# - Student → view only their assignment
+# - Teacher → view assignments of students in their courses
+# ============================================================
+class SectionAssignmentViewSet(ModelViewSet):
+    serializer_class = SectionAssignmentSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # ADMIN → all assignments
+        if user.role == "ADMIN":
+            return SectionAssignment.objects.all()
+
+        # STUDENT → only their assignment
+        if user.role == "STUDENT":
+            return SectionAssignment.objects.filter(student=user)
+
+        # TEACHER → students in their courses
+        if user.role == "TEACHER":
+            return SectionAssignment.objects.filter(student__enrollments__course__assignments__teacher=user).distinct()
+
+        return SectionAssignment.objects.none() 

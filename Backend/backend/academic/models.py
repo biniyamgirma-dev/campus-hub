@@ -416,7 +416,7 @@ class Section(models.Model):
             f"Department - {self.department.name} | "
             f"Entry Year - {self.entry_year} | "
             f"Year - {self.program_year} | "
-            f"Section {self.name}"
+            f"Section - {self.name}"
         )
 
 
@@ -444,6 +444,15 @@ class SectionAssignment(models.Model):
         # Section must be active
         if not self.section.is_active:
             raise ValidationError("Section is not active.")
+        
+        # Section must match student department
+        student_dept = getattr(self.student, "department", None)
+        if self.section.department != student_dept:
+            raise ValidationError("Section must belong to student's department.")
+        
+        # Capacity limit
+        if self.section.section_assignments.filter(semester=self.semester).count() >= self.section.capacity:
+            raise ValidationError("Section is full.")
 
     def __str__(self):
         return (
