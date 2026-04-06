@@ -15,6 +15,8 @@ from .serializers import (DepartmentSerializer, CourseSerializer, SemesterSerial
                           GradeSubmissionSerializer, GradeChangeRequestSerializer, SectionSerializer, 
                           SectionAssignmetSerializer, SectionAssignmentSerializer, AcademicStatusSerializer)
 from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly, IsTeacherOrAdmin
+from django.db import transaction
+from django.core.exceptions import ValidationError
 
 
 User = get_user_model()
@@ -197,35 +199,62 @@ class GradeSubmissionViewSet(ModelViewSet):
 # - Admin → approve/reject & view all requests
 # - Teacher → create & view their requests
 # - Student → view their grade change requests
+# - Teachers cannot manually set grades; grade is derived from mark
 # ============================================================
 class GradeChangeRequestViewSet(ModelViewSet):
+    """
+    Handles grade change requests.
+    Teachers can request changes only for their assigned courses.
+    Admin approves/rejects requests.
+    Students can view requests relevant to them.
+    Grades are not manually set here; system ensures consistency.
+    """
+    queryset = GradeChangeRequest.objects.all()
     serializer_class = GradeChangeRequestSerializer
-    permission_classes = [IsTeacherOrAdmin]
+    permission_classes = [IsAuthenticated]
 
     # --------------------------------------------------------
-    # QUERYSET (ROLE-BASED ACCESS)
+    # ROLE-BASED QUERYSET
     # --------------------------------------------------------
     def get_queryset(self):
         user = self.request.user
 
-        # ADMIN → all requests
         if user.role == "ADMIN":
-            return GradeChangeRequest.objects.all()
+            return self.queryset
 
-        # TEACHER → only their requests
         if user.role == "TEACHER":
-            return GradeChangeRequest.objects.filter(requested_by=user)
+            return self.queryset.filter(requested_by=user)
 
-        # STUDENT → only their enrollments
         if user.role == "STUDENT":
-            return GradeChangeRequest.objects.filter(enrollment__student=user)
+            return self.queryset.filter(enrollment__student=user)
 
-        return GradeChangeRequest.objects.none()
+        return self.queryset.none()
 
+    # --------------------------------------------------------
+    # CREATE REQUEST (TEACHER ONLY + VALIDATION)
+    # --------------------------------------------------------
     def perform_create(self, serializer):
+        user = self.request.user
         enrollment = serializer.validated_data["enrollment"]
 
-        serializer.save(requested_by=self.request.user, old_grade=enrollment.grade)
+        if user.role != "TEACHER":
+            raise ValidationError("Only teachers can request grade changes.")
+
+        # Ensure teacher owns the course
+        is_assigned = enrollment.course.assignments.filter(teacher=user, semester=enrollment.semester).exists()
+
+        if not is_assigned:
+            raise ValidationError("You are not assigned to this course.")
+
+        # Prevent duplicate pending requests
+        if GradeChangeRequest.objects.filter(enrollment=enrollment,status="PENDING").exists():
+            raise ValidationError("A pending request already exists.")
+
+        # Automatically take the current grade from enrollment
+        serializer.save(
+            requested_by=user,
+            old_grade=enrollment.grade
+        )
 
     # --------------------------------------------------------
     # ADMIN ACTION: APPROVE
@@ -240,13 +269,14 @@ class GradeChangeRequestViewSet(ModelViewSet):
         if obj.status != "PENDING":
             return Response({"error": "Already processed."}, status=400)
 
-        obj.status = "APPROVED"
-        obj.reviewed_by = request.user
-        obj.reviewed_at = timezone.now()
-        obj.save()
+        with transaction.atomic():
+            obj.status = "APPROVED"
+            obj.reviewed_by = request.user
+            obj.reviewed_at = timezone.now()
+            obj.save()
 
-        # Apply change
-        obj.apply_change()
+            # Apply the grade change safely
+            obj.apply_change()
 
         return Response({"status": "Approved and applied"})
 

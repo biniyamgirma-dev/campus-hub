@@ -49,16 +49,13 @@ class GradeSubmissionSerializer(serializers.ModelSerializer):
         read_only_fields = ["grade", "submitted_by"]
 
 class GradeChangeRequestSerializer(serializers.ModelSerializer):
+    old_grade = serializers.CharField(read_only=True)   # Cannot be set manually
+    new_grade = serializers.CharField(read_only=True)   # Applied only when admin approves
+
     class Meta:
         model = GradeChangeRequest
-        fields = "__all__"
-        read_only_fields = [
-            "old_grade",
-            "requested_by",
-            "reviewed_by",
-            "status",
-            "reviewed_at",
-        ]
+        fields = '__all__'
+        read_only_fields = ["requested_by", "status", "reviewed_by", "reviewed_at", "created_at"]
 
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
