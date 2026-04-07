@@ -40,7 +40,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Enrollment
         fields = "__all__"
-        read_only_fields = ("student", "semester", "course", "grade", "enrolled_at")
+        read_only_fields = ["student", "semester", "course", "grade", "enrolled_at"]
 
 class GradeSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -82,10 +82,10 @@ class AcademicStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = AcademicStatus
         fields = "__all__"
-        read_only_fields = (
-            "semester_gpa",
-            "cumulative_gpa",
-            "status",
-            "created_at",
-            "updated_at",
-        )
+        read_only_fields = ["semester_gpa", "cumulative_gpa", "status", "created_at", "updated_at"]
+
+class RegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Registration
+        fields = '__all__'
+        read_only_fields = ["student", "status", "created_at","updated_at"]

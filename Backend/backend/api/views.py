@@ -13,7 +13,7 @@ from registration.models import Registration, RegistrationStatus
 from .serializers import (DepartmentSerializer, CourseSerializer, SemesterSerializer, 
                           CourseAssignmentSerializer, EnrollmentSerializer, 
                           GradeSubmissionSerializer, GradeChangeRequestSerializer, SectionSerializer, 
-                          SectionAssignmetSerializer, SectionAssignmentSerializer, AcademicStatusSerializer)
+                          SectionAssignmetSerializer, SectionAssignmentSerializer, AcademicStatusSerializer, RegistrationSerializer)
 from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly, IsTeacherOrAdmin
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -409,3 +409,88 @@ class AcademicStatusViewSet(ModelViewSet):
             {"detail": "Academic status records cannot be deleted."},
             status=status.HTTP_403_FORBIDDEN,
         )
+    
+# ============================================================
+# REGISTRATION VIEWSET
+# - Admin → full access (approve/reject)
+# - Student → create & view own registrations
+# ============================================================
+class RegistrationViewSet(ModelViewSet):
+    queryset = Registration.objects.all()
+    serializer_class = RegistrationSerializer
+    permission_classes = [IsAuthenticated]
+
+    # --------------------------------------------------------
+    # ROLE-BASED QUERYSET
+    # --------------------------------------------------------
+    def get_queryset(self):
+        user = self.request.user
+
+        # ADMIN → all registrations
+        if user.role == "ADMIN":
+            return self.queryset
+
+        # STUDENT → only their registrations
+        if user.role == "STUDENT":
+            return self.queryset.filter(student=user)
+
+        return self.queryset.none()
+
+    # --------------------------------------------------------
+    # CREATE REGISTRATION (STUDENT ONLY)
+    # --------------------------------------------------------
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        if user.role != "STUDENT":
+            raise ValidationError("Only students can create registrations.")
+
+        serializer.save(student=user)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+
+        if instance.status != "PENDING":
+            raise ValidationError("Only pending registrations can be modified.")
+
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        if instance.status != "PENDING":
+            return Response({"error": "Cannot delete processed registration."},status=400)
+
+        return super().destroy(request, *args, **kwargs)
+
+
+    # --------------------------------------------------------
+    # ADMIN ACTION: APPROVE
+    # --------------------------------------------------------
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        obj = self.get_object()
+
+        if request.user.role != "ADMIN":
+            return Response({"error": "Only admin can approve."}, status=403)
+
+        try:
+            obj.approve()
+        except ValidationError as e:
+            return Response({"error": str(e)}, status=400)
+
+        return Response({"status": "Approved and enrollments created"})
+
+    # --------------------------------------------------------
+    # ADMIN ACTION: REJECT
+    # --------------------------------------------------------
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        obj = self.get_object()
+
+        if request.user.role != "ADMIN":
+            return Response({"error": "Only admin can reject."}, status=403)
+
+        obj.reject()
+
+        return Response({"status": "Rejected"})

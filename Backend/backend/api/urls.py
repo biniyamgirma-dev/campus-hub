@@ -14,4 +14,6 @@ router.register(r"sections", views.SectionViewSet, basename="sections")
 router.register(r"section-assignments", views.SectionAssignmentViewSet, basename="section-assignments")
 router.register(r"academic-status", views.AcademicStatusViewSet, basename="academic-status")
 
+router.register(r"registration", views.RegistrationViewSet, basename="registration")
+
 urlpatterns = router.urls
