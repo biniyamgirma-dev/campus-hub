@@ -1,19 +1,44 @@
-# academic/api/urls.py
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
 
 router = DefaultRouter()
+
+# =========================
+# ACADEMIC
+# =========================
 router.register(r"departments", views.DepartmentViewSet, basename="department")
 router.register(r"courses", views.CourseViewSet, basename="course")
 router.register(r"semesters", views.SemesterViewSet, basename="semester")
-router.register(r"course-assignment", views.CourseAssignmentViewSet, basename="course-assignment")
-router.register(r"enrollment", views.EnrollmentViewSet, basename="enrollment")
-router.register(r"grade-submission", views.GradeSubmissionViewSet, basename="grade-submission")
-router.register(r"grade-change-request", views.GradeChangeRequestViewSet, basename="grade-change-request")
-router.register(r"sections", views.SectionViewSet, basename="sections")
-router.register(r"section-assignments", views.SectionAssignmentViewSet, basename="section-assignments")
+router.register(r"course-assignments", views.CourseAssignmentViewSet, basename="course-assignment")
+router.register(r"enrollments", views.EnrollmentViewSet, basename="enrollment")
+router.register(r"grade-submissions", views.GradeSubmissionViewSet, basename="grade-submission")
+router.register(r"grade-change-requests", views.GradeChangeRequestViewSet, basename="grade-change-request")
+router.register(r"sections", views.SectionViewSet, basename="section")
+router.register(r"section-assignments", views.SectionAssignmentViewSet, basename="section-assignment")
 router.register(r"academic-status", views.AcademicStatusViewSet, basename="academic-status")
 
-router.register(r"registration", views.RegistrationViewSet, basename="registration")
+# =========================
+# REGISTRATION
+# =========================
+router.register(r"registrations", views.RegistrationViewSet, basename="registration")
 
-urlpatterns = router.urls
+# =========================
+# USERS
+# =========================
+router.register(r"users", views.UserViewSet, basename="user")
+
+
+# =========================
+# URL PATTERNS
+# =========================
+urlpatterns = [
+    # AUTH
+    path("auth/signup/", views.SignupView.as_view(), name="signup"),
+    path("auth/login/", TokenObtainPairView.as_view(), name="login"),
+    path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
+    # ALL VIEWSETS
+    path("", include(router.urls)),
+]

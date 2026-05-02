@@ -89,3 +89,47 @@ class RegistrationSerializer(serializers.ModelSerializer):
         model = Registration
         fields = '__all__'
         read_only_fields = ["student", "status", "created_at","updated_at"]
+
+# ------------------------------------------------------------
+# Signup SERIALIZER (STUDENT ONLY)
+# ------------------------------------------------------------
+class SignupSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "username",
+            "password",
+            "first_name",
+            "last_name",
+            "email",
+            "student_id",
+            "department",
+        )
+
+    def create(self, validated_data):
+        # FORCE STUDENT ROLE
+        validated_data["role"] = "STUDENT"
+
+        # Ensure no staff_id
+        validated_data.pop("staff_id", None)
+
+        return User.objects.create_user(**validated_data)
+
+
+# ------------------------------------------------------------
+# USER SERIALIZER
+# ------------------------------------------------------------
+class UserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = "__all__"
+        read_only_fields = (
+            "role",
+            "student_id",
+            "staff_id",
+            "is_superuser",
+            "is_staff",
+        )

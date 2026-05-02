@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import get_user_model
 from academic.models import (Department, Course, Semester, CourseAssignment, Enrollment, 
@@ -13,11 +14,13 @@ from registration.models import Registration, RegistrationStatus
 from .serializers import (DepartmentSerializer, CourseSerializer, SemesterSerializer, 
                           CourseAssignmentSerializer, EnrollmentSerializer, 
                           GradeSubmissionSerializer, GradeChangeRequestSerializer, SectionSerializer, 
-                          SectionAssignmetSerializer, SectionAssignmentSerializer, AcademicStatusSerializer, RegistrationSerializer)
+                          SectionAssignmetSerializer, SectionAssignmentSerializer, AcademicStatusSerializer, RegistrationSerializer,
+                          SignupSerializer, UserSerializer)
 from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly, IsTeacherOrAdmin
 from django.db import transaction
 from django.core.exceptions import ValidationError
-
+from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 
 User = get_user_model()
 
@@ -494,3 +497,82 @@ class RegistrationViewSet(ModelViewSet):
         obj.reject()
 
         return Response({"status": "Rejected"})
+    
+# ============================================================
+# REGISTER VIEW
+# - Only students can self-register
+# ============================================================
+class SignupView(APIView):
+
+    def post(self, request):
+        serializer = SignupSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Student registered successfully"}, status=201)
+
+        return Response(serializer.errors, status=400)
+
+
+# ============================================================
+# USER VIEWSET
+# - Admin → full access
+# - Teacher → view students
+# - Student → own profile only
+# ============================================================
+class UserViewSet(ModelViewSet):
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    # --------------------------------------------------------
+    # QUERYSET (ROLE-BASED)
+    # --------------------------------------------------------
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role == "ADMIN":
+            return User.objects.all()
+
+        if user.role == "TEACHER":
+            return User.objects.filter(role="STUDENT")
+
+        return User.objects.filter(id=user.id)
+
+    # --------------------------------------------------------
+    # CREATE (ADMIN ONLY)
+    # --------------------------------------------------------
+    def perform_create(self, serializer):
+        if self.request.user.role != "ADMIN":
+            raise PermissionDenied("Only admin can create users.")
+
+        serializer.save()
+
+    # --------------------------------------------------------
+    # UPDATE RULES
+    # --------------------------------------------------------
+    def perform_update(self, serializer):
+        user = self.request.user
+        instance = self.get_object()
+
+        # Student can only update self
+        if user.role == "STUDENT" and instance != user:
+            raise PermissionDenied("You can only update your own profile.")
+
+        serializer.save()
+
+    # --------------------------------------------------------
+    # DELETE (ADMIN ONLY)
+    # --------------------------------------------------------
+    def destroy(self, request, *args, **kwargs):
+        if request.user.role != "ADMIN":
+            return Response({"error": "Only admin can delete users."}, status=403)
+
+        return super().destroy(request, *args, **kwargs)
+
+    # --------------------------------------------------------
+    # CURRENT USER
+    # --------------------------------------------------------
+    @action(detail=False, methods=["get"])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
