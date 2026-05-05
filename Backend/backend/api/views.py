@@ -14,8 +14,8 @@ from registration.models import Registration, RegistrationStatus
 from .serializers import (DepartmentSerializer, CourseSerializer, SemesterSerializer, 
                           CourseAssignmentSerializer, EnrollmentSerializer, 
                           GradeSubmissionSerializer, GradeChangeRequestSerializer, SectionSerializer, 
-                          SectionAssignmetSerializer, SectionAssignmentSerializer, AcademicStatusSerializer, RegistrationSerializer,
-                          SignupSerializer, UserSerializer)
+                          SectionAssignmentSerializer, AcademicStatusSerializer, RegistrationSerializer,
+                          SignupSerializer, UserSerializer, DormitorySerializer, DormitoryAssignmentSerializer)
 from .permissions import IsAdminOrReadOnly, IsTeacherOrReadOnly, IsTeacherOrAdmin
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -576,3 +576,63 @@ class UserViewSet(ModelViewSet):
     def me(self, request):
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+    
+# ============================================================
+# DORMITORY VIEWSET
+# - Everyone → view
+# - Admin → full access
+# ============================================================
+class DormitoryViewSet(ModelViewSet):
+    queryset = Dormitory.objects.all()
+    serializer_class = DormitorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+
+# ============================================================
+# DORMITORY ASSIGNMENT VIEWSET
+# - Admin → full access
+# - Student → only their dorm
+# - Teacher → read-only (optional)
+# ============================================================
+class DormitoryAssignmentViewSet(ModelViewSet):
+    queryset = DormitoryAssignment.objects.select_related("student", "dormitory", "semester")
+    serializer_class = DormitoryAssignmentSerializer
+    permission_classes = [IsAuthenticated]
+
+    # --------------------------------------------------------
+    # ROLE-BASED QUERYSET
+    # --------------------------------------------------------
+    def get_queryset(self):
+        user = self.request.user
+
+        # ADMIN → all
+        if user.role == "ADMIN":
+            return self.queryset
+
+        # STUDENT → only their dorm
+        if user.role == "STUDENT":
+            return self.queryset.filter(student=user)
+
+        # TEACHER → view only
+        if user.role == "TEACHER":
+            return self.queryset
+
+        return self.queryset.none()
+
+    # --------------------------------------------------------
+    # ONLY ADMIN CAN CREATE / UPDATE / DELETE
+    # --------------------------------------------------------
+    def perform_create(self, serializer):
+        if self.request.user.role != "ADMIN":
+            raise PermissionError("Only admin can assign dormitories.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if self.request.user.role != "ADMIN":
+            raise PermissionError("Only admin can update assignments.")
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        if request.user.role != "ADMIN":
+            return Response({"error": "Only admin can delete assignments."}, status=403)
+        return super().destroy(request, *args, **kwargs)

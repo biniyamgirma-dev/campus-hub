@@ -6,6 +6,49 @@ from registration.models import Registration, RegistrationStatus
 
 User = get_user_model()
 
+# ------------------------------------------------------------
+# Signup SERIALIZER (STUDENT ONLY)
+# ------------------------------------------------------------
+class SignupSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "username",
+            "password",
+            "first_name",
+            "last_name",
+            "email",
+            "student_id",
+            "department",
+        )
+
+    def create(self, validated_data):
+        # FORCE STUDENT ROLE
+        validated_data["role"] = "STUDENT"
+
+        # Ensure no staff_id
+        validated_data.pop("staff_id", None)
+
+        return User.objects.create_user(**validated_data)
+
+
+# ------------------------------------------------------------
+# USER SERIALIZER
+# ------------------------------------------------------------
+class UserSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = "__all__"
+        read_only_fields = (
+            "role",
+            "student_id",
+            "staff_id",
+            "is_superuser",
+            "is_staff",
+        )
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
@@ -62,20 +105,10 @@ class SectionSerializer(serializers.ModelSerializer):
         model = Section
         fields = '__all__'
 
-class SectionAssignmetSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SectionAssignment
-        fields = '__all__'
-
 class SectionAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = SectionAssignment
         fields = '__all__'
-
-from rest_framework import serializers
-from academic.models import AcademicStatus
-
-
 class AcademicStatusSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.get_full_name", read_only=True)
     section_name = serializers.CharField(source="section.name", read_only=True)
@@ -90,46 +123,14 @@ class RegistrationSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ["student", "status", "created_at","updated_at"]
 
-# ------------------------------------------------------------
-# Signup SERIALIZER (STUDENT ONLY)
-# ------------------------------------------------------------
-class SignupSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
+class DormitorySerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = User
-        fields = (
-            "username",
-            "password",
-            "first_name",
-            "last_name",
-            "email",
-            "student_id",
-            "department",
-        )
-
-    def create(self, validated_data):
-        # FORCE STUDENT ROLE
-        validated_data["role"] = "STUDENT"
-
-        # Ensure no staff_id
-        validated_data.pop("staff_id", None)
-
-        return User.objects.create_user(**validated_data)
-
-
-# ------------------------------------------------------------
-# USER SERIALIZER
-# ------------------------------------------------------------
-class UserSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = User
+        model = Dormitory
         fields = "__all__"
-        read_only_fields = (
-            "role",
-            "student_id",
-            "staff_id",
-            "is_superuser",
-            "is_staff",
-        )
+class DormitoryAssignmentSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = DormitoryAssignment
+        fields = "__all__"
+        read_only_fields = ["assigned_at"]

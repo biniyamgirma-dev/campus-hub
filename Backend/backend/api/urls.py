@@ -29,7 +29,6 @@ router.register(r"registrations", views.RegistrationViewSet, basename="registrat
 # =========================
 router.register(r"users", views.UserViewSet, basename="user")
 
-
 # =========================
 # URL PATTERNS
 # =========================
@@ -42,3 +41,9 @@ urlpatterns = [
     # ALL VIEWSETS
     path("", include(router.urls)),
 ]
+
+# =========================
+# DORMITORY
+# =========================
+router.register(r"dormitories", views.DormitoryViewSet, basename="dormitory")
+router.register(r"dormitory-assignments", views.DormitoryAssignmentViewSet, basename="dormitory-assignment")
