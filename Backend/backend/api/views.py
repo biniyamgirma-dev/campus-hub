@@ -47,17 +47,30 @@ class CourseViewSet(ModelViewSet):
     permission_classes = [IsAdminOrReadOnly]
 
     # --------------------------------------------------------
-    # Control what data each user sees
+    # ROLE-BASED QUERYSET (SECURE VERSION)
     # --------------------------------------------------------
     def get_queryset(self):
         user = self.request.user
 
-        # Admin → see everything
+        # ADMIN → full access
         if user.is_authenticated and (user.role == "ADMIN" or user.is_superuser):
             return Course.objects.all()
 
-        # Others → see only active courses
-        return Course.objects.filter(is_active=True)
+        # STUDENT → only their department + active courses
+        if user.role == "STUDENT":
+            if not user.department:
+                return Course.objects.none()
+
+            return Course.objects.filter(department=user.department, is_active=True)
+
+        # TEACHER → only their department + active courses
+        if user.role == "TEACHER":
+            if not user.department:
+                return Course.objects.none()
+
+            return Course.objects.filter(department=user.department, is_active=True)
+
+        return Course.objects.none()
     
 # ============================================================
 # Semester VIEWSET
