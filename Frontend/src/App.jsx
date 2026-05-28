@@ -4,19 +4,21 @@ import Login from "./Login";
 import StudentDashboard from "./StudentDashboard";
 import TeacherDashboard from "./TeacherDashboard";
 import AdminDashboard from "./AdminDashboard";
+import RegistrationPage from "./RegistrationPage";
 
 const NAV = {
   STUDENT: [
-    { key: "dashboard", label: "Dashboard", icon: "⊞" },
-    { key: "profile", label: "My profile", icon: "◉" },
+    { key: "dashboard",     label: "Dashboard",     icon: "⊞" },
+    { key: "registration",  label: "Registration",  icon: "✎" },
+    { key: "profile",       label: "My profile",    icon: "◉" },
   ],
   TEACHER: [
     { key: "dashboard", label: "Dashboard", icon: "⊞" },
-    { key: "profile", label: "My profile", icon: "◉" },
+    { key: "profile",   label: "My profile", icon: "◉" },
   ],
   ADMIN: [
     { key: "dashboard", label: "Dashboard", icon: "⊞" },
-    { key: "profile", label: "My profile", icon: "◉" },
+    { key: "profile",   label: "My profile", icon: "◉" },
   ],
 };
 
@@ -145,7 +147,7 @@ export default function App() {
   const roleColor = ROLE_COLOR[role] || "#6366f1";
   const initials = profile ? `${profile.first_name?.[0] || ""}${profile.last_name?.[0] || ""}` : "?";
 
-  const pageTitles = { dashboard: "Dashboard", profile: "My profile" };
+  const pageTitles = { dashboard: "Dashboard", registration: "Course Registration", profile: "My profile" };
 
   return (
     <div style={S.app}>
@@ -195,6 +197,7 @@ export default function App() {
           {page === "dashboard" && role === "STUDENT" && <StudentDashboard user={payload} />}
           {page === "dashboard" && role === "TEACHER" && <TeacherDashboard user={payload} />}
           {page === "dashboard" && role === "ADMIN"   && <AdminDashboard user={payload} />}
+          {page === "registration" && role === "STUDENT" && <RegistrationPage />}
           {page === "profile" && <ProfilePage profile={profile} />}
         </div>
       </div>

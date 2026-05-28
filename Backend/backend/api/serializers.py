@@ -121,7 +121,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Registration
         fields = '__all__'
-        read_only_fields = ["student", "status", "created_at","updated_at"]
+        read_only_fields = ["student", "created_at","updated_at"]
 
 class DormitorySerializer(serializers.ModelSerializer):
 
