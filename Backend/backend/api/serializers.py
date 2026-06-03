@@ -80,6 +80,12 @@ class CourseAssignmentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class EnrollmentSerializer(serializers.ModelSerializer):
+    course_name = serializers.CharField(source="course.name", read_only=True)
+    student_name = serializers.SerializerMethodField()
+
+    def get_student_name(self, obj):
+        return f"{obj.student.first_name} {obj.student.last_name}".strip() or obj.student.username
+
     class Meta:
         model = Enrollment
         fields = "__all__"

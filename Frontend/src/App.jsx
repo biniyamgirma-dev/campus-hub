@@ -5,20 +5,29 @@ import StudentDashboard from "./StudentDashboard";
 import TeacherDashboard from "./TeacherDashboard";
 import AdminDashboard from "./AdminDashboard";
 import RegistrationPage from "./RegistrationPage";
+import GradeSubmissionPage from "./GradeSubmissionPage";
+import CoursesPage from "./CoursesPage";
+import ProfilePage from "./ProfilePage";
+import SemesterManagementPage from "./SemesterManagementPage";
 
 const NAV = {
   STUDENT: [
-    { key: "dashboard",     label: "Dashboard",     icon: "⊞" },
-    { key: "registration",  label: "Registration",  icon: "✎" },
-    { key: "profile",       label: "My profile",    icon: "◉" },
+    { key: "dashboard",    label: "Dashboard",        icon: "⊞" },
+    { key: "courses",      label: "Courses",          icon: "◈" },
+    { key: "registration", label: "Registration",     icon: "✎" },
+    { key: "profile",      label: "My profile",       icon: "◉" },
   ],
   TEACHER: [
-    { key: "dashboard", label: "Dashboard", icon: "⊞" },
-    { key: "profile",   label: "My profile", icon: "◉" },
+    { key: "dashboard",    label: "Dashboard",        icon: "⊞" },
+    { key: "grades",       label: "Grade Submission", icon: "✎" },
+    { key: "courses",      label: "Courses",          icon: "◈" },
+    { key: "profile",      label: "My profile",       icon: "◉" },
   ],
   ADMIN: [
-    { key: "dashboard", label: "Dashboard", icon: "⊞" },
-    { key: "profile",   label: "My profile", icon: "◉" },
+    { key: "dashboard",  label: "Dashboard",    icon: "⊞" },
+    { key: "semesters",  label: "Semesters",    icon: "◫" },
+    { key: "courses",    label: "Courses",      icon: "◈" },
+    { key: "profile",    label: "My profile",   icon: "◉" },
   ],
 };
 
@@ -92,41 +101,6 @@ const S = {
   content: { flex: 1, padding: "1.5rem", overflowY: "auto" },
 };
 
-function ProfilePage({ profile }) {
-  if (!profile) return <div style={{ color: "#6b6f85", padding: "2rem" }}>Loading profile…</div>;
-  const fields = [
-    { label: "Full name", value: `${profile.first_name} ${profile.last_name}` },
-    { label: "Username", value: profile.username },
-    { label: "Email", value: profile.email || "—" },
-    { label: "Role", value: profile.role },
-    { label: "Department", value: profile.department_name || "—" },
-    { label: "Student ID", value: profile.student_id || "—" },
-    { label: "Staff ID", value: profile.staff_id || "—" },
-    { label: "Gender", value: profile.gender || "—" },
-    { label: "Date of birth", value: profile.date_of_birth || "—" },
-    { label: "Bio", value: profile.bio || "—" },
-  ];
-  return (
-    <div style={{ background: "#1a1d27", border: "1px solid #2a2d3a", borderRadius: "16px", padding: "1.5rem", maxWidth: "520px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "1.5rem" }}>
-        <div style={{ ...S.avatar, width: "48px", height: "48px", fontSize: "18px", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", color: "#fff" }}>
-          {profile.first_name?.[0]}{profile.last_name?.[0]}
-        </div>
-        <div>
-          <div style={{ fontSize: "17px", fontWeight: "700", color: "#f0f0f5" }}>{profile.first_name} {profile.last_name}</div>
-          <div style={{ fontSize: "13px", color: "#6b6f85" }}>{profile.role}</div>
-        </div>
-      </div>
-      {fields.map((f) => (
-        <div key={f.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #1e2130" }}>
-          <span style={{ fontSize: "13px", color: "#6b6f85" }}>{f.label}</span>
-          <span style={{ fontSize: "13px", color: "#e2e4f0", textAlign: "right" }}>{String(f.value)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem("access_token"));
   const [page, setPage] = useState("dashboard");
@@ -147,8 +121,7 @@ export default function App() {
   const roleColor = ROLE_COLOR[role] || "#6366f1";
   const initials = profile ? `${profile.first_name?.[0] || ""}${profile.last_name?.[0] || ""}` : "?";
 
-  const pageTitles = { dashboard: "Dashboard", registration: "Course Registration", profile: "My profile" };
-
+  const pageTitles = { dashboard: "Dashboard", registration: "Course Registration", grades: "Grade Submission", courses: "Courses & Departments", profile: "My profile" , semesters: "Semester Management"};
   return (
     <div style={S.app}>
       <div style={S.sidebar}>
@@ -198,7 +171,10 @@ export default function App() {
           {page === "dashboard" && role === "TEACHER" && <TeacherDashboard user={payload} />}
           {page === "dashboard" && role === "ADMIN"   && <AdminDashboard user={payload} />}
           {page === "registration" && role === "STUDENT" && <RegistrationPage />}
-          {page === "profile" && <ProfilePage profile={profile} />}
+          {page === "profile" && <ProfilePage />}
+          {page === "grades" && role === "TEACHER" && <GradeSubmissionPage />}
+          {page === "courses" && <CoursesPage role={role} />}
+          {page === "semesters" && role === "ADMIN" && <SemesterManagementPage />}
         </div>
       </div>
     </div>

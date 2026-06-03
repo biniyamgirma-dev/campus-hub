@@ -304,10 +304,12 @@ class GradeSubmission(models.Model):
         super().save(*args, **kwargs)
 
         # Update enrollment grade if not already set
+        # Update enrollment grade if not already set
+        # Use .update() to bypass Enrollment.save()/full_clean() validation
         enrollment = self.enrollment
         if not enrollment.grade:
-            enrollment.grade = self.grade
-            enrollment.save(update_fields=["grade"])
+            Enrollment.objects.filter(pk=enrollment.pk).update(grade=self.grade)
+            enrollment.grade = self.grade  # keep in-memory object in sync
 
         # Trigger academic status recalculation
         AcademicStatus.update_for_student_and_semester(
