@@ -43,9 +43,6 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = "__all__"
         read_only_fields = (
-            "role",
-            "student_id",
-            "staff_id",
             "is_superuser",
             "is_staff",
         )
