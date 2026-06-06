@@ -14,7 +14,7 @@ SECRET_KEY = 'django-insecure-mad6f^k3$=y7-kc%=kvwrty594my!ydk)5z@3k_82=7yt&tdad
 DEBUG = False
 
 ALLOWED_HOSTS = [
-    "campus-hub-backend.onrender.com",
+    "campus-hub-s2kw.onrender.com",
 ]
 
 
