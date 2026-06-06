@@ -3,7 +3,7 @@ const BASE_URL = "https://campus-hub-s2kw.onrender.com";
 export default BASE_URL;
 
 export async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem("access_token");
+  localStorage.setItem("access_token", data.access);
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
