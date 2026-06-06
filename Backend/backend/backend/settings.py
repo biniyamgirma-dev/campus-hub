@@ -53,6 +53,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://campus-hub-kappa.vercel.app/",
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 ROOT_URLCONF = 'backend.urls'
