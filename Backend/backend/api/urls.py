@@ -8,41 +8,24 @@ router = DefaultRouter()
 # =========================
 # ACADEMIC
 # =========================
-router.register(r"departments", views.DepartmentViewSet, basename="department")
-router.register(r"courses", views.CourseViewSet, basename="course")
-router.register(r"semesters", views.SemesterViewSet, basename="semester")
-router.register(r"course-assignments", views.CourseAssignmentViewSet, basename="course-assignment")
-router.register(r"enrollments", views.EnrollmentViewSet, basename="enrollment")
-router.register(r"grade-submissions", views.GradeSubmissionViewSet, basename="grade-submission")
-router.register(r"grade-change-requests", views.GradeChangeRequestViewSet, basename="grade-change-request")
-router.register(r"sections", views.SectionViewSet, basename="section")
-router.register(r"section-assignments", views.SectionAssignmentViewSet, basename="section-assignment")
-router.register(r"academic-status", views.AcademicStatusViewSet, basename="academic-status")
+router.register(r"departments", views.DepartmentViewSet)
+router.register(r"courses", views.CourseViewSet)
+router.register(r"semesters", views.SemesterViewSet)
+router.register(r"course-assignments", views.CourseAssignmentViewSet)
+router.register(r"enrollments", views.EnrollmentViewSet)
+router.register(r"grade-submissions", views.GradeSubmissionViewSet)
+router.register(r"grade-change-requests", views.GradeChangeRequestViewSet)
+router.register(r"sections", views.SectionViewSet)
+router.register(r"section-assignments", views.SectionAssignmentViewSet)
+router.register(r"academic-status", views.AcademicStatusViewSet)
+router.register(r"registrations", views.RegistrationViewSet)
+router.register(r"users", views.UserViewSet)
+router.register(r"dormitories", views.DormitoryViewSet)
+router.register(r"dormitory-assignments", views.DormitoryAssignmentViewSet)
 
-# =========================
-# REGISTRATION
-# =========================
-router.register(r"registrations", views.RegistrationViewSet, basename="registration")
-
-# =========================
-# USERS
-# =========================
-router.register(r"users", views.UserViewSet, basename="user")
-
-# =========================
-# URL PATTERNS
-# =========================
 urlpatterns = [
-    # AUTH
-    path("auth/signup/", views.SignupView.as_view(), name="signup"),
-    path('auth/login/', CustomTokenObtainPairView.as_view()),
-
-    # ALL VIEWSETS
+    path("auth/signup/", views.SignupView.as_view()),
+    path("auth/login/", CustomTokenObtainPairView.as_view()),
     path("", include(router.urls)),
+    path("users/me/", views.me),
 ]
-
-# =========================
-# DORMITORY
-# =========================
-router.register(r"dormitories", views.DormitoryViewSet, basename="dormitory")
-router.register(r"dormitory-assignments", views.DormitoryAssignmentViewSet, basename="dormitory-assignment")
