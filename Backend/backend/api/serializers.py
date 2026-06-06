@@ -32,6 +32,19 @@ class SignupSerializer(serializers.ModelSerializer):
         validated_data.pop("staff_id", None)
 
         return User.objects.create_user(**validated_data)
+    
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+
+        user = User(
+            **validated_data,
+            role="STUDENT"
+    )
+
+        user.set_password(password)
+        user.save()
+
+        return user
 
 
 # ------------------------------------------------------------

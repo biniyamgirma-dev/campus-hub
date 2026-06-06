@@ -463,13 +463,7 @@ class RegistrationViewSet(ModelViewSet):
 
         serializer.save(student=user)
 
-    # def perform_update(self, serializer):
-    #     instance = self.get_object()
 
-    #     if instance.status != "PENDING":
-    #         raise ValidationError("Only pending registrations can be modified.")
-
-    #     serializer.save()
     def perform_update(self, serializer):
         instance = self.get_object()
     # Allow students to resubmit a rejected registration
