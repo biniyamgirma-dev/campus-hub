@@ -365,7 +365,7 @@ For local development no `.env` file is needed — all settings are in `settings
 
 ## Author
 
-Built by **Biniyam Girma** as part of the SEng 2208 Software Engineering course project.
+Built by **Biniyam Girma**
 
 ---
 
