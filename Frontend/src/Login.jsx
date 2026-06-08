@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API_BASE = "https://campus-hub-s2kw.onrender.com/api";
+const API_BASE = "http://localhost:8000/api";
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -17,7 +17,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/token/`, {
+      const res = await fetch(`${API_BASE}/auth/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

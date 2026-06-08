@@ -11,11 +11,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-mad6f^k3$=y7-kc%=kvwrty594my!ydk)5z@3k_82=7yt&tdad'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = [
-    "campus-hub-s2kw.onrender.com",
-]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -50,8 +48,9 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "https://campus-hub-kappa.vercel.app",
+    "http://localhost:3000",
 ]
+
 
 from corsheaders.defaults import default_headers
 

@@ -1,11 +1,9 @@
-const BASE_URL = "https://campus-hub-s2kw.onrender.com";
-
-export default BASE_URL;
+const BASE = "http://localhost:8000/api";
 
 export async function apiFetch(path, options = {}) {
-  localStorage.setItem("access_token", data.access);
+  const token = localStorage.getItem("access_token");
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -29,4 +27,3 @@ export function parseToken(token) {
     return null;
   }
 }
-
